@@ -15,7 +15,6 @@ def health():
     return "OK", 200
 
 def run_bot_async():
-    """اجرای بات در یک حلقه asyncio جدید"""
     asyncio.run(bot.run_bot())
 
 if __name__ == "__main__":

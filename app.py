@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 import threading
+import asyncio
 import bot
 
 app = Flask(__name__)
@@ -13,8 +14,12 @@ def home():
 def health():
     return "OK", 200
 
+def run_bot_async():
+    """اجرای بات در یک حلقه asyncio جدید"""
+    asyncio.run(bot.run_bot())
+
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=bot.run_bot)
+    bot_thread = threading.Thread(target=run_bot_async)
     bot_thread.daemon = True
     bot_thread.start()
     

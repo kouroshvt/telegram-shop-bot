@@ -3,7 +3,7 @@ import json
 import os
 import asyncio
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, InputFile
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
 # ==================== تنظیمات ====================
@@ -814,27 +814,43 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("❌ رد شارژ", callback_data=f"reject_{payment_id}")]
         ]
         
-        # ارسال عکس به ادمین
+        # ========== ارسال عکس با InputFile ==========
         try:
             with open(filepath, 'rb') as photo_file:
                 await context.bot.send_photo(
                     chat_id=ADMIN_ID,
-                    photo=photo_file,
+                    photo=InputFile(photo_file),
                     caption=admin_text,
                     reply_markup=InlineKeyboardMarkup(keyboard_admin),
                     parse_mode='Markdown'
                 )
-            print(f"✅ عکس به ادمین ارسال شد! payment_id: {payment_id}")
+            print(f"✅ عکس با InputFile ارسال شد! payment_id: {payment_id}")
             
-        except Exception as e:
-            # اگه ارسال عکس FAILED شد، حداقل پیام متنی بفرست
-            print(f"❌ خطا در ارسال عکس: {e}")
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=f"{admin_text}\n\n⚠️ عکس قابل ارسال نیست! لطفاً فایل رو چک کنید.",
-                reply_markup=InlineKeyboardMarkup(keyboard_admin),
-                parse_mode='Markdown'
-            )
+        except Exception as e1:
+            print(f"❌ روش InputFile failed: {e1}")
+            
+            try:
+                # روش دوم: با file_id
+                await context.bot.send_photo(
+                    chat_id=ADMIN_ID,
+                    photo=file.file_id,
+                    caption=admin_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard_admin),
+                    parse_mode='Markdown'
+                )
+                print(f"✅ عکس با file_id ارسال شد! payment_id: {payment_id}")
+                
+            except Exception as e2:
+                print(f"❌ روش file_id failed: {e2}")
+                
+                # روش سوم: پیام متنی + دکمه
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=f"{admin_text}\n\n⚠️ عکس قابل ارسال نیست!\n📸 نام فایل: `{filename}`\n\n✅ لطفاً با توجه به اطلاعات بالا، شارژ را تایید یا رد کنید.",
+                    reply_markup=InlineKeyboardMarkup(keyboard_admin),
+                    parse_mode='Markdown'
+                )
+                print(f"✅ پیام متنی با نام فایل ارسال شد! payment_id: {payment_id}")
         
         return ConversationHandler.END
         

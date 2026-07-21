@@ -1,7 +1,7 @@
 import os
 from flask import Flask
 import threading
-from bot import main
+import bot
 
 app = Flask(__name__)
 
@@ -14,7 +14,7 @@ def health():
     return "OK", 200
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=main)
+    bot_thread = threading.Thread(target=bot.run_bot)
     bot_thread.daemon = True
     bot_thread.start()
     

@@ -3,6 +3,7 @@ import json
 import os
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from io import BytesIO
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, InputFile
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, MessageHandler, filters
@@ -18,8 +19,10 @@ PAYMENTS_FILE = "payments.json"
 DISCOUNTS_FILE = "discounts.json"
 SUPPORT_FILE = "support.json"
 
-PHOTOS_DIR = "payment_photos"
-os.makedirs(PHOTOS_DIR, exist_ok=True)
+# ========== مسیر مطلق پوشه عکس‌ها ==========
+BASE_DIR = Path(__file__).parent.absolute()
+PHOTOS_DIR = BASE_DIR / "payment_photos"
+PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -756,7 +759,7 @@ async def charge_send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return CHARGE_PHOTO
 
-# ==================== اصلاح شده: ارسال عکس با حافظه ====================
+# ==================== اصلاح شده: ارسال عکس با پوشه ====================
 
 async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -767,12 +770,25 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
         photo = update.message.photo[-1]
         file = await photo.get_file()
         
-        print("📸 مرحله 2: دانلود عکس در حافظه (RAM)")
-        file_bytes = await file.download_as_bytearray()
-        photo_buffer = BytesIO(file_bytes)
-        photo_buffer.name = f"payment_{user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        # ========== مسیر پوشه عکس‌ها ==========
+        print(f"📸 مرحله 2: ذخیره در {PHOTOS_DIR}")
+        PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
         
-        print(f"✅ عکس در حافظه ذخیره شد - سایز: {len(file_bytes)} bytes")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"payment_{user.id}_{timestamp}.jpg"
+        filepath = PHOTOS_DIR / filename
+        
+        # دانلود عکس
+        await file.download_to_drive(str(filepath))
+        
+        # چک کن فایل دانلود شده یا نه
+        if filepath.exists():
+            file_size = filepath.stat().st_size
+            print(f"✅ فایل دانلود شد: {filepath} - سایز: {file_size} bytes")
+        else:
+            print(f"❌ فایل دانلود نشد: {filepath}")
+            await update.message.reply_text("❌ خطا در دانلود عکس!")
+            return ConversationHandler.END
         
         # ذخیره در دیتابیس
         payments = load_payments()
@@ -784,7 +800,7 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
             "username": user.username or "",
             "first_name": user.first_name or "",
             "amount": amount,
-            "photo": f"payment_{user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg",
+            "photo": filename,
             "status": "pending",
             "date": datetime.now().isoformat()
         }
@@ -816,19 +832,20 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("❌ رد شارژ", callback_data=f"reject_{payment_id}")]
         ]
         
-        # ========== ارسال عکس از حافظه ==========
+        # ========== ارسال عکس ==========
         try:
-            await context.bot.send_photo(
-                chat_id=ADMIN_ID,
-                photo=photo_buffer,
-                caption=admin_text,
-                reply_markup=InlineKeyboardMarkup(keyboard_admin),
-                parse_mode='Markdown'
-            )
-            print(f"✅ عکس از حافظه به ادمین ارسال شد! payment_id: {payment_id}")
+            with open(filepath, 'rb') as photo_file:
+                await context.bot.send_photo(
+                    chat_id=ADMIN_ID,
+                    photo=photo_file,
+                    caption=admin_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard_admin),
+                    parse_mode='Markdown'
+                )
+            print(f"✅ عکس به ادمین ارسال شد! payment_id: {payment_id}")
             
         except Exception as e:
-            print(f"❌ خطا در ارسال عکس از حافظه: {e}")
+            print(f"❌ خطا در ارسال عکس: {e}")
             await context.bot.send_message(
                 chat_id=ADMIN_ID,
                 text=f"{admin_text}\n\n⚠️ عکس قابل ارسال نیست! لطفاً با پشتیبانی تماس بگیرید.",

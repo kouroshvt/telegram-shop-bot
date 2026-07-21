@@ -4,8 +4,7 @@ import os
 import asyncio
 from datetime import datetime
 from pathlib import Path
-from io import BytesIO
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, InputFile
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
 # ==================== تنظیمات ====================
@@ -759,7 +758,7 @@ async def charge_send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return CHARGE_PHOTO
 
-# ==================== اصلاح شده: ارسال عکس با پوشه ====================
+# ==================== اصلاح نهایی: ارسال عکس با file_id (بدون دانلود) ====================
 
 async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -768,27 +767,12 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
         
         print("📸 مرحله 1: دریافت عکس از کاربر")
         photo = update.message.photo[-1]
-        file = await photo.get_file()
+        file_id = photo.file_id
+        print(f"✅ file_id دریافت شد: {file_id[:30]}...")
         
-        # ========== مسیر پوشه عکس‌ها ==========
-        print(f"📸 مرحله 2: ذخیره در {PHOTOS_DIR}")
+        # ========== ساخت پوشه ==========
         PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"payment_{user.id}_{timestamp}.jpg"
-        filepath = PHOTOS_DIR / filename
-        
-        # دانلود عکس
-        await file.download_to_drive(str(filepath))
-        
-        # چک کن فایل دانلود شده یا نه
-        if filepath.exists():
-            file_size = filepath.stat().st_size
-            print(f"✅ فایل دانلود شد: {filepath} - سایز: {file_size} bytes")
-        else:
-            print(f"❌ فایل دانلود نشد: {filepath}")
-            await update.message.reply_text("❌ خطا در دانلود عکس!")
-            return ConversationHandler.END
+        print(f"✅ پوشه: {PHOTOS_DIR}")
         
         # ذخیره در دیتابیس
         payments = load_payments()
@@ -800,7 +784,7 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
             "username": user.username or "",
             "first_name": user.first_name or "",
             "amount": amount,
-            "photo": filename,
+            "photo": file_id,
             "status": "pending",
             "date": datetime.now().isoformat()
         }
@@ -832,17 +816,16 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("❌ رد شارژ", callback_data=f"reject_{payment_id}")]
         ]
         
-        # ========== ارسال عکس ==========
+        # ========== ارسال عکس با file_id ==========
         try:
-            with open(filepath, 'rb') as photo_file:
-                await context.bot.send_photo(
-                    chat_id=ADMIN_ID,
-                    photo=photo_file,
-                    caption=admin_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard_admin),
-                    parse_mode='Markdown'
-                )
-            print(f"✅ عکس به ادمین ارسال شد! payment_id: {payment_id}")
+            await context.bot.send_photo(
+                chat_id=ADMIN_ID,
+                photo=file_id,
+                caption=admin_text,
+                reply_markup=InlineKeyboardMarkup(keyboard_admin),
+                parse_mode='Markdown'
+            )
+            print(f"✅ عکس با file_id به ادمین ارسال شد! payment_id: {payment_id}")
             
         except Exception as e:
             print(f"❌ خطا در ارسال عکس: {e}")

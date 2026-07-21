@@ -755,18 +755,24 @@ async def charge_send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return CHARGE_PHOTO
 
+# ==================== اصلاح شده: ارسال عکس به ادمین ====================
+
 async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        photo = update.message.photo[-1]
         user = update.effective_user
         amount = context.user_data.get('charge_amount', 0)
         
+        # دریافت عکس
+        photo = update.message.photo[-1]
         file = await photo.get_file()
+        
+        # دانلود عکس
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"payment_{user.id}_{timestamp}.jpg"
         filepath = os.path.join(PHOTOS_DIR, filename)
         await file.download_to_drive(filepath)
         
+        # ذخیره در دیتابیس
         payments = load_payments()
         payment_id = len(payments) + 1
         
@@ -783,29 +789,32 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
         payments.append(payment)
         save_payments(payments)
         
+        # پیام به کاربر
         keyboard = [[InlineKeyboardButton("🔙 بازگشت به منو", callback_data='back_to_menu')]]
         await update.message.reply_text(
             f"✅ عکس رسید شما با موفقیت ارسال شد!\n"
             f"💰 مبلغ: {amount:,} تومان\n\n"
-            f"⏳ درخواست شما در انتظار تایید است.\n"
-            f"به زودی موجودی شما شارژ می‌شود.",
+            f"⏳ درخواست شما در انتظار تایید است.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         
+        # ========== ارسال به ادمین ==========
         admin_text = f"""
 🆕 **درخواست شارژ جدید!**
 
 👤 کاربر: {user.first_name}
 🆔 آیدی: `{user.id}`
+👤 یوزرنیم: @{user.username or 'ندارد'}
 💰 مبلغ: {amount:,} تومان
-📸 عکس: {filename}
 📅 تاریخ: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
+        
         keyboard_admin = [
             [InlineKeyboardButton("✅ تایید شارژ", callback_data=f"confirm_{payment_id}")],
             [InlineKeyboardButton("❌ رد شارژ", callback_data=f"reject_{payment_id}")]
         ]
         
+        # ارسال عکس به ادمین
         try:
             with open(filepath, 'rb') as photo_file:
                 await context.bot.send_photo(
@@ -815,14 +824,23 @@ async def handle_charge_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
                     reply_markup=InlineKeyboardMarkup(keyboard_admin),
                     parse_mode='Markdown'
                 )
+            print(f"✅ عکس به ادمین ارسال شد! payment_id: {payment_id}")
+            
         except Exception as e:
-            print(f"❌ خطا در ارسال به ادمین: {e}")
+            # اگه ارسال عکس FAILED شد، حداقل پیام متنی بفرست
+            print(f"❌ خطا در ارسال عکس: {e}")
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"{admin_text}\n\n⚠️ عکس قابل ارسال نیست! لطفاً فایل رو چک کنید.",
+                reply_markup=InlineKeyboardMarkup(keyboard_admin),
+                parse_mode='Markdown'
+            )
         
         return ConversationHandler.END
         
     except Exception as e:
-        print(f"❌ خطا: {e}")
-        await update.message.reply_text("❌ خطایی رخ داد!")
+        print(f"❌ خطا در handle_charge_photo: {e}")
+        await update.message.reply_text("❌ خطایی رخ داد! لطفاً دوباره تلاش کنید.")
         return ConversationHandler.END
 
 async def handle_charge_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1645,10 +1663,10 @@ async def run_bot():
     application = (
         Application.builder()
         .token(TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
+        .connect_timeout(60.0)
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .pool_timeout(60.0)
         .build()
     )
     

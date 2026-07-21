@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "name": "پنل 1 گیگابایت",
+    "price": 6000,
+    "description": "پنل با حجم 1 گیگابایت",
+    "is_active": true
+  },
+  {
+    "id": 2,
+    "name": "پنل 5 گیگابایت",
+    "price": 27000,
+    "description": "پنل با حجم 5 گیگابایت",
+    "is_active": true
+  },
+  {
+    "id": 3,
+    "name": "پنل 10 گیگابایت",
+    "price": 55000,
+    "description": "پنل با حجم 10 گیگابایت",
+    "is_active": true
+  },
+  {
+    "id": 4,
+    "name": "پنل با حجم 100 گیگابایت",
+    "price": 450000,
+    "description": "پنل ویژه با سرعت بالا",
+    "is_active": true
+  }
+]

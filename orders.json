@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "user_id": 8389022102,
+    "plan_id": 1,
+    "plan_name": "پنل ۱ گیگابایت",
+    "amount": 50000,
+    "price": 50000,
+    "status": "delivered",
+    "date": "2026-07-19T12:10:41.565444",
+    "config": "8776670663:AAFu2h8ts-u70pCS6DvAZiEaFWYaL_gwe_4"
+  },
+  {
+    "id": 2,
+    "user_id": 8389022102,
+    "plan_id": 1,
+    "plan_name": "پنل ۱ گیگابایت",
+    "amount": 40000,
+    "price": 40000,
+    "status": "delivered",
+    "date": "2026-07-20T09:31:19.035158",
+    "config": "8776670663:AAFu2h8ts-u70pCS6DvAZiEaFWYaL_gwe_4"
+  }
+]
